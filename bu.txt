@@ -1,0 +1,654 @@
+/*private void GetEmpID()
+        {
+            string searchValue = txtRFID.Text.Trim(); // Get the RFID value from the text box
+
+            // Check if search value is empty
+            if (string.IsNullOrEmpty(searchValue))
+            {
+                MessageBox.Show("Please enter an RFID again.", "Input Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            opencon.dbconnect(); // Connect to the database
+
+            if (opencon.OpenConnection()) // Ensure the connection is open
+            {
+                try
+                {
+                    // SQL query to fetch employee id
+                    string query = "SELECT employee.employee_id as 'Employee ID', CONCAT(employee_fname, ' ', employee_mname, ' ', employee_lname) AS 'FULL NAME', " + 
+                                   "job.job_department AS 'Department' FROM employee INNER JOIN job ON employee.employee_id = job.employee_id " +
+                                   "INNER JOIN RFID ON employee.employee_id = rfid.employee_id WHERE rfid.rfid_tag = @RFID";
+
+                    MySqlCommand cmd = new MySqlCommand(query, opencon.connection);
+                    cmd.Parameters.AddWithValue("@RFID", searchValue);
+                  
+
+                    using (MySqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.HasRows)
+                        {
+                            while (reader.Read())
+                            {
+                                
+                                empID = reader["Employee ID"].ToString();
+                                fullName = reader["Full Name"].ToString();
+                                department = reader["Department"].ToString();
+                            }
+                        }
+                        else
+                        {
+                            MessageBox.Show("No employee found with the given RFID.", "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                    }
+                }
+                catch (MySqlException ex)
+                {
+                    MessageBox.Show($"An error occurred while searching:\n{ex.Message}", "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    opencon.CloseConnection();
+                }
+            }
+        }*/
+
+private void DepartmentHead()
+        {
+            try
+            {
+                opencon.dbconnect();
+
+                if (opencon.OpenConnection())
+                {
+                    if (department == "College")
+                    {
+                        string query = @"SELECT employee_contact AS 'Contact' FROM employee INNER JOIN job ON employee.employee_id = job.employee_id WHERE job_title = 'Dean'";
+                        using (MySqlCommand cmd = new MySqlCommand(query, opencon.connection))
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                headContact = reader["Contact"].ToString();
+                            }
+                        }
+                    }else if (department == "Senior High School")
+                    {
+                        string query = @"SELECT employee_contact AS 'Contact' FROM employee INNER JOIN job ON employee.employee_id = job.employee_id WHERE job_title = 'Principal'";
+                        using (MySqlCommand cmd = new MySqlCommand(query, opencon.connection))
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                headContact = reader["Contact"].ToString();
+                            }
+                        }
+                    }
+                    message = fullName + "has entered at the school and Time In at" + aTimeIn;
+                    SendMessage();
+                }
+            }
+            catch (MySqlException ex)
+            {
+                MessageBox.Show($"Database error:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                opencon.CloseConnection();
+            }
+        }
+
+
+// SQL query to fetch all schedules for the employee on the current day
+                    string query = "SELECT sched_num, employee.employee_id as 'Employee ID', CONCAT(employee_fname, ' ', employee_mname, ' ', employee_lname) AS 'FULL NAME', " +
+                                    "job.job_department AS 'Department', " +
+                                    "schedule.sched_day AS 'Schedule Day', schedule.sched_timeIn AS 'Schedule In', schedule.sched_timeOut AS 'Schedule Out', " +
+                                    "schedule.sched_period AS 'Schedule Period' " +
+                                    "FROM EMPLOYEE " +
+                                    "INNER JOIN RFID ON EMPLOYEE.EMPLOYEE_ID = RFID.EMPLOYEE_ID " +
+                                    "LEFT JOIN SCHEDULE ON EMPLOYEE.EMPLOYEE_ID = SCHEDULE.EMPLOYEE_ID " +
+                                    "INNER JOIN JOB ON EMPLOYEE.EMPLOYEE_ID = JOB.EMPLOYEE_ID " +
+                                    "WHERE RFID.RFID_TAG = @RFID AND schedule.sched_day = @CurrentDay " +
+                                    "ORDER BY schedule.sched_period DESC";
+
+                    MySqlCommand cmd = new MySqlCommand(query, opencon.connection);
+                    cmd.Parameters.AddWithValue("@RFID", searchValue);
+                    cmd.Parameters.AddWithValue("@CurrentDay", DateTime.Now.DayOfWeek.ToString());
+
+
+
+
+
+
+
+
+
+
+
+
+
+ public partial class frmDisplayRfidScan : Form
+    {
+        DBconnection opencon = new DBconnection();
+        public frmDisplayRfidScan(frmDisplayInfo formInfo)
+        {
+            InitializeComponent();
+            this.Size = new Size(SystemInformation.WorkingArea.Width, SystemInformation.WorkingArea.Height);
+            maxLengthTimer = new System.Windows.Forms.Timer();
+            maxLengthTimer.Interval = 800; // Set timer interval (800ms)
+            maxLengthTimer.Tick += Timer_Tick;
+            formDisplayInfo = formInfo;
+        }
+
+        private frmDisplayInfo formDisplayInfo;
+        private System.Windows.Forms.Timer maxLengthTimer;
+        private string lastInput = "";
+       
+        private string empID;
+        private string fullName;
+        private string department;
+       
+        private string aDate = DateTime.Now.ToString("yyyy/MM/dd");
+        private string aTimeIn;
+        private string aTimeOut;
+        private string aStatusIn;
+        private string aStatusOut;
+
+        private string schedIn;
+        private string schedOut;
+        private string schedPeriod;
+
+        private string headContact;
+        private string message;
+
+        private void frmDisplayEmployee_Load(object sender, EventArgs e)
+        {
+            timer1.Interval = 1000; // Set timer to tick every second
+            timer1.Start(); // Start the timer
+            txtRFID.Select();
+            comboBox1.SelectedIndex = 0;
+        }
+
+        private void txtRFID_TextChanged(object sender, EventArgs e)
+        {
+            // Stop and restart the timer each time the text changes
+            maxLengthTimer.Stop();
+            maxLengthTimer.Start();
+
+            // Store the current input
+            lastInput = txtRFID.Text;
+            aTimeIn = DateTime.Now.ToString("HH:mm");
+            aTimeOut = DateTime.Now.ToString("HH:mm");
+
+            if (formDisplayInfo != null && !formDisplayInfo.IsDisposed)
+            {
+                formDisplayInfo.FillRfid(lastInput);
+            }
+
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            lblTime.Text = DateTime.Now.ToString("dddd, hh:mm:ss tt");
+        }
+
+        private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            txtRFID.Focus();
+        }
+
+        private void StatusIn()
+        {
+            DateTime actualTimeIn, scheduleIn;
+
+            // Try parsing the scheduled and actual time in
+            if (DateTime.TryParse(schedIn, out scheduleIn) && DateTime.TryParse(aTimeIn, out actualTimeIn))
+            {
+                // Calculate the difference in minutes between actual time and scheduled time
+                double minutesLate = (actualTimeIn - scheduleIn).TotalMinutes;
+
+                // Determine status based on the time difference
+                if (minutesLate > 15)
+                {
+                    aStatusIn = "Late";
+                }
+                else
+                {
+                    aStatusIn = "On Time";
+                }
+            }
+            else
+            {
+                MessageBox.Show("Unable to parse scheduled or actual time in.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void StatusOut()
+        {
+
+            DateTime actualTimeOut, scheduleOut;
+
+            // Try parsing the scheduled and actual time in
+            if (DateTime.TryParse(schedOut, out scheduleOut) && DateTime.TryParse(aTimeOut, out actualTimeOut))
+            {
+                // Calculate the difference in minutes between actual time out and scheduled time
+                double minutesDifference = (actualTimeOut - scheduleOut).TotalMinutes;
+
+                // Determine status based on the time difference
+                if (minutesDifference < -15)
+                {
+                    aStatusOut = "Under Time";
+                }
+                else if (minutesDifference > 15)
+                {
+                    aStatusOut = "Over Time";
+                }
+                else
+                {
+                    aStatusOut = "On Time";
+                }
+
+                
+            }
+            else
+            {
+                MessageBox.Show("Unable to parse scheduled or actual time out.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private bool SendMessage()
+        {
+            
+            try
+            {
+                SerialPort serialPort = new SerialPort();
+                serialPort.PortName = "COM3";
+                serialPort.Open();
+
+                serialPort.WriteLine("AT" + Environment.NewLine);
+                Thread.Sleep(100);
+
+                serialPort.WriteLine("AT+CMGF=1" + Environment.NewLine);
+                Thread.Sleep(100);
+
+                serialPort.WriteLine("AT+CSCS=\"GSM\"" + Environment.NewLine);
+                Thread.Sleep(100);
+
+                serialPort.WriteLine("AT+CMGS=\"" + headContact + "\"" + Environment.NewLine);
+                Thread.Sleep(100);
+
+                serialPort.WriteLine(message + Environment.NewLine);
+                Thread.Sleep(100);
+
+                var response = serialPort.ReadExisting();
+
+                if (response.Contains("ERROR"))
+                {
+                    Console.WriteLine("Received an error: " + response);
+                    return false;
+                }
+                serialPort.Close();
+
+                return true;
+            }
+            catch(Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+                return false;
+            }
+        }
+
+        private void LoadEmployee()
+        {
+            string searchValue = txtRFID.Text.Trim(); // Get the RFID value from the text box
+
+            // Check if search value is empty
+            if (string.IsNullOrEmpty(searchValue))
+            {
+                MessageBox.Show("Please enter an RFID again.", "Input Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            opencon.dbconnect(); // Connect to the database
+
+            if (opencon.OpenConnection()) // Ensure the connection is open
+            {
+                try
+                {
+                    string query = @"SELECT sched_num, employee.employee_id AS 'Employee ID', 
+                        CONCAT(employee_fname, ' ', employee_mname, ' ', employee_lname) AS 'FULL NAME',
+                        job.job_department AS 'Department', 
+                        schedule.sched_day AS 'Schedule Day', 
+                        schedule.sched_timeIn AS 'Schedule In', 
+                        schedule.sched_timeOut AS 'Schedule Out', 
+                        schedule.sched_period AS 'Schedule Period'
+                        FROM EMPLOYEE 
+                        INNER JOIN RFID ON EMPLOYEE.EMPLOYEE_ID = RFID.EMPLOYEE_ID 
+                        LEFT JOIN SCHEDULE ON EMPLOYEE.EMPLOYEE_ID = SCHEDULE.EMPLOYEE_ID 
+                        LEFT JOIN ATTENDANCE ON EMPLOYEE.EMPLOYEE_ID = ATTENDANCE.EMPLOYEE_ID 
+                                       AND SCHEDULE.sched_period = ATTENDANCE.a_period 
+                                       AND ATTENDANCE.a_date = @Date
+                        INNER JOIN JOB ON EMPLOYEE.EMPLOYEE_ID = JOB.EMPLOYEE_ID 
+                        WHERE RFID.RFID_TAG = @RFID 
+                          AND SCHEDULE.sched_day = @CurrentDay 
+                          AND ATTENDANCE.a_period IS NULL -- Only get unsaved schedules
+                        ORDER BY SCHEDULE.sched_period DESC";
+
+                    // Add parameters to prevent SQL injection and match current date and day of week
+                    MySqlCommand cmd = new MySqlCommand(query, opencon.connection);
+                    cmd.Parameters.AddWithValue("@RFID", searchValue);
+                    cmd.Parameters.AddWithValue("@CurrentDay", DateTime.Now.DayOfWeek.ToString());
+                    cmd.Parameters.AddWithValue("@Date", DateTime.Now.ToString("yyyy-MM-dd"));
+
+
+                    using (MySqlDataReader reader = cmd.ExecuteReader())  
+                        if (reader.HasRows)
+                        {
+                            while (reader.Read())
+                            {
+                                // Loop through all schedules and handle each separately
+                                
+                                empID = reader["Employee ID"].ToString();
+                                fullName = reader["Full Name"].ToString();
+                                department = reader["Department"].ToString();
+                                schedIn = reader["Schedule In"].ToString();
+                                schedOut = reader["Schedule Out"].ToString();
+                                schedPeriod = reader["Schedule Period"].ToString();
+                                // Process each schedule (status calculation and attendance insertion)  
+                            }
+                        }
+                        else
+                        {
+                            MessageBox.Show("No employee found with the given RFID.", "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                    
+                }
+                catch (MySqlException ex)
+                {
+                    MessageBox.Show($"An error occurred while searching:\n{ex.Message}", "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    opencon.CloseConnection();
+                }
+            }
+        }
+
+        private void DepartmentHead(string attendanceAction)
+        {
+            try
+            {
+                opencon.dbconnect();
+
+                if (opencon.OpenConnection())
+                {
+                    string jobTitle = department == "College" ? "Dean" : department == "Senior High School" ? "Principal" : null;
+                    if (jobTitle == null)
+                    {
+                        MessageBox.Show("Department not recognized.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    // Query to get the contact of the department head based on job title
+                    string query = @"SELECT employee_contact AS 'Contact' FROM employee 
+                             INNER JOIN job ON employee.employee_id = job.employee_id 
+                             WHERE job_title = @JobTitle";
+                    using (MySqlCommand cmd = new MySqlCommand(query, opencon.connection))
+                    {
+                        cmd.Parameters.AddWithValue("@JobTitle", jobTitle);
+
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                headContact = reader["Contact"].ToString();
+                            }
+                            else
+                            {
+                                MessageBox.Show("Department head contact not found.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                                return;
+                            }
+                        }
+                    }
+
+                    // Create message based on attendance action
+                    if (attendanceAction == "TIME IN")
+                    {
+                        message = $"{fullName} has entered the school and Time In at {aTimeIn}. Date: {aDate}";
+                    }
+                    else if (attendanceAction == "TIME OUT")
+                    {
+                        message = $"{fullName} has left the school and Time Out at {aTimeOut}. Date: {aDate}";
+                    }
+                    else
+                    {
+                        MessageBox.Show("Invalid attendance action specified.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    // Send the message
+                    SendMessage();
+                }
+            }
+            catch (MySqlException ex)
+            {
+                MessageBox.Show($"Database error:\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                opencon.CloseConnection();
+            }
+        }
+
+
+        private void InsertAttendanceIn()
+        {
+            
+            opencon.dbconnect();
+
+            if (opencon.OpenConnection())
+            {
+                // Check if an attendance record for this employee and period already exists on the current date
+                string checkQuery = @"SELECT COUNT(*) FROM attendance 
+                              WHERE employee_id = @EmployeeID AND a_date = @Date AND a_period = @Period";
+                MySqlCommand checkCmd = new MySqlCommand(checkQuery, opencon.connection);
+                checkCmd.Parameters.AddWithValue("@EmployeeID", empID);
+                checkCmd.Parameters.AddWithValue("@Date", aDate);
+                checkCmd.Parameters.AddWithValue("@Period", schedPeriod);
+
+                int recordExists = Convert.ToInt32(checkCmd.ExecuteScalar());
+
+                if (recordExists > 0)
+                {
+                    MessageBox.Show("Attendance for this schedule period already recorded.", "Duplicate Entry", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Insert new attendance record if not already existing
+                string query = @"INSERT INTO attendance(employee_id, a_date, a_timeIn, a_period, a_statusIn) 
+                         VALUES (@EmployeeID, @Date, @TimeIn, @Period, @StatusIn)";
+                try
+                {
+                    using (MySqlCommand cmd = new MySqlCommand(query, opencon.connection))
+                    {
+                        cmd.Parameters.AddWithValue("@EmployeeID", empID);
+                        cmd.Parameters.AddWithValue("@Date", aDate);
+                        cmd.Parameters.AddWithValue("@TimeIn", aTimeIn);
+                        cmd.Parameters.AddWithValue("@Period", schedPeriod);
+                        cmd.Parameters.AddWithValue("@StatusIn", aStatusIn);
+
+                        cmd.ExecuteNonQuery(); // Execute the insert command
+                        MessageBox.Show("Attendance record inserted successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    formDisplayInfo.ShowDialog();
+                }
+                catch (MySqlException ex)
+                {
+                    MessageBox.Show($"An error occurred while inserting the data:\n{ex.Message}", "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    opencon.CloseConnection();
+                }
+            }
+        }
+
+
+        private void InsertAttendanceOut()
+        {
+            LoadEmployee();
+            StatusOut();
+            opencon.dbconnect();
+
+            if (opencon.OpenConnection())
+            {
+                // Check if an attendance record for this employee and period already exists on the current date
+                string checkQuery = @"SELECT COUNT(*) FROM attendance 
+                              WHERE employee_id = @EmployeeID AND a_date = @Date AND a_period = @Period";
+                MySqlCommand checkCmd = new MySqlCommand(checkQuery, opencon.connection);
+                checkCmd.Parameters.AddWithValue("@EmployeeID", empID);
+                checkCmd.Parameters.AddWithValue("@Date", aDate);
+                checkCmd.Parameters.AddWithValue("@Period", schedPeriod);
+
+                int recordExists = Convert.ToInt32(checkCmd.ExecuteScalar());
+
+                if (recordExists == 0)
+                {
+                    MessageBox.Show("No matching attendance record found for this schedule period.", "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Update the existing attendance record's time out and status
+                string updateQuery = @"UPDATE attendance 
+                               SET a_timeOut = @TimeOut, a_statusOut = @StatusOut 
+                               WHERE employee_id = @EmployeeID AND a_date = @Date AND a_period = @Period";
+                try
+                {
+                    using (MySqlCommand cmd = new MySqlCommand(updateQuery, opencon.connection))
+                    {
+                        cmd.Parameters.AddWithValue("@TimeOut", aTimeOut);
+                        cmd.Parameters.AddWithValue("@StatusOut", aStatusOut);
+                        cmd.Parameters.AddWithValue("@EmployeeID", empID);
+                        cmd.Parameters.AddWithValue("@Date", aDate);
+                        cmd.Parameters.AddWithValue("@Period", schedPeriod);
+
+                        cmd.ExecuteNonQuery(); // Execute the update command
+                        MessageBox.Show("Attendance record updated successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+
+                    formDisplayInfo.ShowDialog();
+                    
+                }
+                catch (MySqlException ex)
+                {
+                    MessageBox.Show($"An error occurred while updating the data:\n{ex.Message}", "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    opencon.CloseConnection();
+                }
+            }
+        }
+
+
+        private void Timer_Tick(object sender, EventArgs e)
+        {
+            maxLengthTimer.Stop();
+
+            if (!string.IsNullOrEmpty(lastInput))
+            {
+                txtRFID.MaxLength = lastInput.Length;
+                LoadEmployee();
+                if (comboBox1.Text == "TIME IN")
+                { 
+                    StatusIn();
+                    InsertAttendanceIn();
+                    DepartmentHead("TIME IN");
+                }
+                else if (comboBox1.Text == "TIME OUT")
+                {
+                    StatusOut();
+                    InsertAttendanceOut();
+                    DepartmentHead("TIME OUT");
+                }
+
+
+                txtRFID.Clear();
+            }
+            else if (string.IsNullOrEmpty(txtRFID.Text))
+            {
+                txtRFID.MaxLength = 16;
+                txtRFID.Focus();
+            }
+
+            Console.WriteLine($"MaxLength adjusted to: {txtRFID.MaxLength}");
+        }
+    
+    }
+
+
+ private void LoadEmployee()
+        {
+            string searchValue = txtRFID.Text.Trim();
+
+            if (string.IsNullOrEmpty(searchValue))
+            {
+                MessageBox.Show("Please enter an RFID again.", "Input Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            opencon.dbconnect();
+
+            if (opencon.OpenConnection())
+            {
+                try
+                {
+                    string query = @"SELECT sched_num, employee.employee_id AS 'Employee ID', 
+                            CONCAT(employee_fname, ' ', employee_mname, ' ', employee_lname) AS 'FULL NAME',
+                            job.job_department AS 'Department', 
+                            schedule.sched_day AS 'Schedule Day', 
+                            schedule.sched_timeIn AS 'Schedule In', 
+                            schedule.sched_timeOut AS 'Schedule Out', 
+                            schedule.sched_period AS 'Schedule Period'
+                            FROM EMPLOYEE 
+                            INNER JOIN RFID ON EMPLOYEE.EMPLOYEE_ID = RFID.EMPLOYEE_ID 
+                            INNER JOIN JOB ON EMPLOYEE.EMPLOYEE_ID = JOB.EMPLOYEE_ID 
+                            LEFT JOIN SCHEDULE ON EMPLOYEE.EMPLOYEE_ID = SCHEDULE.EMPLOYEE_ID 
+                            WHERE RFID.RFID_TAG = @RFID 
+                            AND SCHEDULE.sched_day = @CurrentDay 
+                            ORDER BY SCHEDULE.sched_period DESC";
+
+                    MySqlCommand cmd = new MySqlCommand(query, opencon.connection);
+                    cmd.Parameters.AddWithValue("@RFID", searchValue);
+                    cmd.Parameters.AddWithValue("@CurrentDay", DateTime.Now.DayOfWeek.ToString());
+
+                    using (MySqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.HasRows)
+                        {
+                            while (reader.Read())
+                            {
+                                empID = reader["Employee ID"].ToString();
+                                fullName = reader["FULL NAME"].ToString();
+                                department = reader["Department"].ToString();
+                                schedIn = reader["Schedule In"].ToString();
+                                schedOut = reader["Schedule Out"].ToString();
+                                schedPeriod = reader["Schedule Period"].ToString();
+                            }
+                        }
+                        else
+                        {
+                            MessageBox.Show("No employee found with the given RFID.", "Not Found", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                    }
+                }
+                catch (MySqlException ex)
+                {
+                    MessageBox.Show($"An error occurred while loading employee details:\n{ex.Message}", "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+                finally
+                {
+                    opencon.CloseConnection();
+                }
+            }
+        }
